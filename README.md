@@ -62,7 +62,12 @@ The LLM Analytics Dashboard is a comprehensive web application designed to provi
 
 ## 📸 Screenshots
 
-*[Screenshots will be added here from your GitHub repository]*
+<img width="1470" alt="login-screen" src="https://github.com/user-attachments/assets/ad1b620c-a6e8-4e04-a50a-fa722696acf3" />
+<img width="1470" alt="demo_dashboard_view" src="https://github.com/user-attachments/assets/d63f2fb2-83fc-4028-a911-66e738ff0cd7" />
+<img width="1470" alt="analysis_chat_view_1" src="https://github.com/user-attachments/assets/189d4783-6463-4110-87fc-a8afd04805b6" />
+<img width="1470" alt="result_table" src="https://github.com/user-attachments/assets/52df3034-0fc5-4ac5-afd3-63f3ac1766d8" />
+<img width="1470" alt="sql_query_viewer" src="https://github.com/user-attachments/assets/1c985ab3-f773-486e-99df-e2fd409c9753" />
+
 
 ## 🛠 Technology Stack
 
