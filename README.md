@@ -2,7 +2,6 @@
 
 A modern, interactive dashboard for visualizing and analyzing Large Language Model (LLM) analytics data. Built with React, featuring real-time charts, KPI summaries, and comprehensive data visualization capabilities.
 
-![Dashboard Preview](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![React Version](https://img.shields.io/badge/React-19.1.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
