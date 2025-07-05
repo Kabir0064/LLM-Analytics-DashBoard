@@ -5,6 +5,7 @@ import TrendLineChart from '../components/charts/TrendLineChart';
 import DistributionPieChart from '../components/charts/DistributionPieChart';
 import ComparisonBarChart from '../components/charts/ComparisonBarChart';
 import { samplePayloads } from '../data/mocks/samplePayloads';
+import CorrelationChart from '../components/charts/CorrelationChart';
 
 function Dashboard() {
   const [selectedPayloadId, setSelectedPayloadId] = useState(samplePayloads[0].id);
@@ -22,10 +23,7 @@ function Dashboard() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Demo Mode</span>
-              <button className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">
-                Logout
-              </button>
+              <span className="text-sm text-gray-600"></span>
             </div>
           </div>
         </div>

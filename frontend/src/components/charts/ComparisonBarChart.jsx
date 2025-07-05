@@ -22,6 +22,7 @@ function ComparisonBarChart({ data, title }) {
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip 
+            formatter={(value) => value.toFixed(2)} 
             contentStyle={{ 
               backgroundColor: 'rgba(255, 255, 255, 0.95)', 
               border: '1px solid #e0e0e0',
