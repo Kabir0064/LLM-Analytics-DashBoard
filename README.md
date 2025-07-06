@@ -103,8 +103,8 @@ The LLM Analytics Dashboard is a comprehensive web application designed to provi
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/llm-analytics-dashboard.git
-   cd llm-analytics-dashboard/frontend
+   git clone https://github.com/Kabir0064/LLM-Analytics-DashBoard.git
+   cd LLM-Analytics-DashBoard/frontend
    ```
 
 2. **Install dependencies**
