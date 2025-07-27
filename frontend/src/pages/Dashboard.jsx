@@ -61,6 +61,11 @@ function Dashboard() {
           { id: 'conversion', label: 'Industry Comparison', icon: '🏢' },
           { id: 'sources', label: 'Year-over-Year Trends', icon: '📊' }
         ];
+      } else if (selectedPayload.id === 5) {
+        // ID5 - Overall Lead Conversion Analysis (simplified to one chart)
+        return [
+          { id: 'conversion', label: 'Conversion Rate Trend', icon: '📈' }
+        ];
       } else {
         return [
           { id: 'conversion', label: 'Conversion Trends', icon: '📈' },
@@ -190,7 +195,9 @@ function Dashboard() {
                     ? (activeTrendChart === 'revenue' ? 'Revenue & Growth Trend' : 'Lead Performance Trend')
                     : selectedPayload.id === 4 
                       ? (activeTrendChart === 'conversion' ? `Industry Conversion Rates (${selectedYear})` : 'Industry Comparison Across Years')
-                      : (activeTrendChart === 'conversion' ? 'Conversion Rate Trends' : 'Lead Source Performance')
+                      : selectedPayload.id === 5
+                        ? 'Overall Lead Conversion Trend (2022-2024)'
+                        : (activeTrendChart === 'conversion' ? 'Conversion Rate Trends' : 'Lead Source Performance')
                 }
                 chartType={activeTrendChart}
                 selectedYear={selectedYear}
