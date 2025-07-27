@@ -32,6 +32,14 @@ function DistributionPieChart({ data, title, selectedYear = '2025' }) {
       name: industryRow.INDUSTRY,
       value: industryRow.CONVERTED_LEADS // Use converted leads as the value
     }));
+  } else if (data.id === 5) {
+    // ID5 - Yearly conversion distribution
+    chartData = data.result.tableData.rows.map(row => ({
+      name: row.YEAR.toString(),
+      value: row.CONVERTED_LEADS,
+      totalLeads: row.TOTAL_LEADS,
+      conversionRate: parseFloat((row.CONVERSION_RATE * 100).toFixed(1))
+    }));
   } else {
     // ID1 & ID2 - Original logic
     chartData = data.result?.tableData?.rows.map(row => ({

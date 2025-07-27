@@ -153,6 +153,16 @@ if (hasTimeSeries && data.kpi === 'sales revenue' && data.id !== 3) {
         'Total Leads': row.TOTAL_LEADS,
         'Converted Leads': row.CONVERTED_LEADS
       }));
+    } else if (data.id === 5) {
+      // For ID5 - Show comprehensive yearly trends with both conversion rate and volume
+      chartData = data.result.tableData.rows
+        .sort((a, b) => a.YEAR - b.YEAR) // Sort by year ascending for better trend visualization
+        .map(row => ({
+          name: row.YEAR.toString(),
+          'Conversion Rate': parseFloat((row.CONVERSION_RATE * 100).toFixed(1)),
+          'Total Leads': Math.round(row.TOTAL_LEADS / 100) * 100, // Round to hundreds for better chart readability
+          'Converted Leads': row.CONVERTED_LEADS
+        }));
     } else {
       // For other payloads, use the existing logic  
       chartData = createTimeSeriesFromRows();
@@ -361,7 +371,25 @@ if (hasTimeSeries && data.kpi === 'sales revenue' && data.id !== 3) {
               tickFormatter={(value) => formatYAxis(value, chartType)}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend />
+            {data.id === 5 ? (
+              // Custom Legend for ID5 to show axis association
+              <Legend 
+                content={(props) => (
+                  <div className="flex justify-center gap-6 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-1 bg-blue-600 rounded"></div>
+                      <span className="text-sm font-medium text-blue-600">Conversion Rate (%) - Left Axis</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-1 bg-green-600 rounded border-2 border-green-600" style={{borderStyle: 'dashed'}}></div>
+                      <span className="text-sm font-medium text-green-600">Total Leads - Right Axis</span>
+                    </div>
+                  </div>
+                )}
+              />
+            ) : (
+              <Legend />
+            )}
             {data.kpi === 'sales revenue' ? (
               data.id === 3 ? (
                 // ID3 - Sales Rep Analysis
@@ -489,7 +517,57 @@ if (hasTimeSeries && data.kpi === 'sales revenue' && data.id !== 3) {
                 )
               )
             ) : data.kpi === 'lead conversion rate' ? (
-              chartType === 'conversion' ? (
+              data.id === 5 ? (
+                // ID5 - Yearly conversion trends with dual axis and clear labels
+                <>
+                  <Line 
+                    type="monotone" 
+                    dataKey="Conversion Rate" 
+                    stroke="#2563EB" 
+                    strokeWidth={4}
+                    dot={{ fill: '#2563EB', r: 6 }}
+                    activeDot={{ r: 8 }}
+                    name="Conversion Rate (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Total Leads" 
+                    stroke="#059669" 
+                    strokeWidth={3}
+                    strokeDasharray="8 4"
+                    yAxisId="right"
+                    dot={{ fill: '#059669', r: 5 }}
+                    activeDot={{ r: 7 }}
+                    name="Total Leads (Volume)"
+                  />
+                  {/* Left Y-axis for Conversion Rate */}
+                  <YAxis 
+                    yAxisId="left" 
+                    orientation="left" 
+                    style={{ fontSize: '12px', fill: '#2563EB', fontWeight: 'bold' }} 
+                    label={{ 
+                      value: 'Conversion Rate (%)', 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle', fill: '#2563EB', fontWeight: 'bold' }
+                    }}
+                    tickFormatter={(value) => `${value}%`}
+                  />
+                  {/* Right Y-axis for Lead Volume */}
+                  <YAxis 
+                    yAxisId="right" 
+                    orientation="right" 
+                    style={{ fontSize: '12px', fill: '#059669', fontWeight: 'bold' }} 
+                    label={{ 
+                      value: 'Total Leads', 
+                      angle: 90, 
+                      position: 'insideRight',
+                      style: { textAnchor: 'middle', fill: '#059669', fontWeight: 'bold' }
+                    }}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                </>
+              ) : chartType === 'conversion' ? (
                 // Overall Conversion Rate Trend
                 <>
                   <Line 

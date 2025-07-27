@@ -63,6 +63,23 @@ function ComparisonBarChart({ data, title, selectedYear = '2025' }) {
         yoyChange: parseFloat(yoyChange)
       };
     });
+  } else if (data.id === 5) {
+    // ID5 - Yearly conversion comparison
+    chartData = data.result.tableData.rows.map(row => ({
+      name: row.YEAR.toString(),
+      value: parseFloat((row.CONVERSION_RATE * 100).toFixed(1)), // Conversion rate %
+      totalLeads: row.TOTAL_LEADS,
+      converted: row.CONVERTED_LEADS,
+      // Calculate year-over-year change
+      yoyChange: (() => {
+        const currentIndex = data.result.tableData.rows.findIndex(r => r.YEAR === row.YEAR);
+        const nextYearData = data.result.tableData.rows[currentIndex - 1]; // Data is sorted DESC by year
+        if (nextYearData && currentIndex > 0) {
+          return parseFloat(((row.CONVERSION_RATE - nextYearData.CONVERSION_RATE) * 100).toFixed(1));
+        }
+        return 0;
+      })()
+    }));
   } else {
     // ID1 & ID2 - Original logic
     chartData = data.result?.tableData?.rows.map(row => ({
