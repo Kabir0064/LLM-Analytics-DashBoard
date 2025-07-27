@@ -62,7 +62,31 @@ The LLM Analytics Dashboard is a comprehensive web application designed to provi
 
 ## 📸 Screenshots
 
-*[Screenshots will be added here from your GitHub repository]*
+### Dashboard Overview
+![Dashboard Main View](/frontend/public/screenshots/dashboard-main.png)
+
+### Authentication Flow
+![Login Screen](/frontend/public/screenshots/login-screen.png)
+
+### Analytics Charts
+![KPI Summary](/frontend/public/screenshots/kpi-summary.png)
+![Trend Analysis](/frontend/public/screenshots/trend-chart.png)
+![Distribution Chart](/frontend/public/screenshots/distribution-chart.png)
+
+### Data Visualization
+![Payload Viewer](/frontend/public/screenshots/payload-viewer.png)
+![Data Table](/frontend/public/screenshots/data-table.png)
+
+---
+
+**📁 Image Location**: Place your screenshot images in the `frontend/public/screenshots/` directory with the following naming convention:
+- `dashboard-main.png` - Main dashboard view
+- `login-screen.png` - Authentication screen
+- `kpi-summary.png` - KPI summary cards
+- `trend-chart.png` - Trend line chart
+- `distribution-chart.png` - Pie chart
+- `payload-viewer.png` - Payload viewer component
+- `data-table.png` - Data table component
 
 ## 🛠 Technology Stack
 
