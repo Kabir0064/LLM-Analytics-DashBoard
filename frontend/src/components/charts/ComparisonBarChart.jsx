@@ -1,7 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { motion } from 'framer-motion';
 
-function ComparisonBarChart({ data, title }) {
+function ComparisonBarChart({ data, title, selectedYear = '2025' }) {
   // Color palette for different bars
   const colors = [
     '#3B82F6', // Blue
@@ -27,6 +27,42 @@ function ComparisonBarChart({ data, title }) {
       deals: rep.DEALS_COUNT,
       avgDeal: Math.round(rep.AVG_DEAL_SIZE / 1000) // Avg deal size in $k
     }));
+  } else if (data.id === 4) {
+    // ID4 - Industry Performance Comparison (2025 data)
+    const currentYearData = data.result.tableData.rows.filter(row => row.YEAR === 2025);
+    chartData = currentYearData.map(row => ({
+      name: row.INDUSTRY,
+      value: parseFloat((row.CONVERSION_RATE * 100).toFixed(1)), // Conversion rate %
+      totalLeads: row.TOTAL_LEADS,
+      converted: row.CONVERTED_LEADS,
+      // Calculate year-over-year change
+      yoyChange: (() => {
+        const prevYearData = data.result.tableData.rows.find(r => r.INDUSTRY === row.INDUSTRY && r.YEAR === 2024);
+        if (prevYearData) {
+          return parseFloat(((row.CONVERSION_RATE - prevYearData.CONVERSION_RATE) * 100).toFixed(1));
+        }
+        return 0;
+      })()
+    }));
+  } else if (data.id === 4) {
+    // ID4 - Industry performance comparison for selected year with YoY change
+    const yearData = data.result.tableData.rows.filter(row => row.YEAR.toString() === selectedYear);
+    const prevYear = (parseInt(selectedYear) - 1).toString();
+    const prevYearData = data.result.tableData.rows.filter(row => row.YEAR.toString() === prevYear);
+    
+    chartData = yearData.map(industryRow => {
+      const prevYearRow = prevYearData.find(row => row.INDUSTRY === industryRow.INDUSTRY);
+      const yoyChange = prevYearRow 
+        ? ((industryRow.CONVERSION_RATE - prevYearRow.CONVERSION_RATE) / prevYearRow.CONVERSION_RATE * 100).toFixed(1)
+        : 0;
+      
+      return {
+        name: industryRow.INDUSTRY,
+        value: parseFloat((industryRow.CONVERSION_RATE * 100).toFixed(1)),
+        secondary: industryRow.TOTAL_LEADS,
+        yoyChange: parseFloat(yoyChange)
+      };
+    });
   } else {
     // ID1 & ID2 - Original logic
     chartData = data.result?.tableData?.rows.map(row => ({
@@ -50,6 +86,16 @@ function ComparisonBarChart({ data, title }) {
               <p className="text-sm text-gray-600">Quota: {item.quota}%</p>
               <p className="text-sm text-gray-600">Deals: {item.deals}</p>
               <p className="text-sm text-gray-600">Avg Deal: ${item.avgDeal}k</p>
+            </>
+          ) : item.totalLeads ? (
+            // ID4 - Industry conversion data
+            <>
+              <p style={{ color: payload[0].color }}>Conversion Rate: {item.value}%</p>
+              <p className="text-sm text-gray-600">Total Leads: {item.totalLeads}</p>
+              <p className="text-sm text-gray-600">Converted: {item.converted}</p>
+              <p className="text-sm text-gray-600">
+                YoY Change: {item.yoyChange > 0 ? '+' : ''}{item.yoyChange}%
+              </p>
             </>
           ) : (
             // Original data
@@ -84,6 +130,19 @@ function ComparisonBarChart({ data, title }) {
               <Bar 
                 dataKey="revenue" 
                 name="Revenue ($k)"
+                radius={[8, 8, 0, 0]}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
+              </Bar>
+            </>
+          ) : data.id === 4 ? (
+            // ID4 - Industry conversion rate comparison
+            <>
+              <Bar 
+                dataKey="value" 
+                name="Conversion Rate (%)"
                 radius={[8, 8, 0, 0]}
               >
                 {chartData.map((entry, index) => (
