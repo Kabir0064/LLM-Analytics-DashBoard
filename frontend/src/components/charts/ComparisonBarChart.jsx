@@ -1,7 +1,19 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { motion } from 'framer-motion';
 
 function ComparisonBarChart({ data, title }) {
+  // Color palette for different bars
+  const colors = [
+    '#3B82F6', // Blue
+    '#10B981', // Green
+    '#F59E0B', // Yellow/Orange
+    '#EF4444', // Red
+    '#8B5CF6', // Purple
+    '#06B6D4', // Cyan
+    '#84CC16', // Lime
+    '#F97316'  // Orange
+  ];
+
   const chartData = data.tableData?.rows.map(row => ({
     name: row.INDUSTRY || row.LEAD_SOURCE || 'Item',
     value: row.TOTAL_REVENUE ? row.TOTAL_REVENUE / 1000000 : row.CONVERSION_RATE * 100 || 0,
@@ -22,20 +34,28 @@ function ComparisonBarChart({ data, title }) {
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip 
-            formatter={(value) => value.toFixed(2)} 
+            formatter={(value, name, props) => [
+              data.kpi === 'sales revenue' ? `$${value.toFixed(2)}M` : `${value.toFixed(1)}%`,
+              name
+            ]}
+            labelStyle={{ fontWeight: 'bold', color: '#374151' }}
             contentStyle={{ 
               backgroundColor: 'rgba(255, 255, 255, 0.95)', 
               border: '1px solid #e0e0e0',
-              borderRadius: '8px'
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }}
           />
           <Legend />
           <Bar 
             dataKey="value" 
-            fill="#3B82F6"
             name={data.kpi === 'sales revenue' ? 'Revenue (M$)' : 'Rate (%)'}
             radius={[8, 8, 0, 0]}
-          />
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </motion.div>

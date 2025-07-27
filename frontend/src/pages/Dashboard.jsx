@@ -9,7 +9,23 @@ import CorrelationChart from '../components/charts/CorrelationChart';
 
 function Dashboard() {
   const [selectedPayloadId, setSelectedPayloadId] = useState(samplePayloads[0].id);
+  const [activeChart, setActiveChart] = useState('trend');
+  const [activeTrendChart, setActiveTrendChart] = useState('revenue'); // New state for trend sub-charts
   const selectedPayload = samplePayloads.find(p => p.id === selectedPayloadId);
+
+  // Chart options
+  const chartOptions = [
+    { id: 'trend', label: 'Trend Analysis', icon: '📈' },
+    { id: 'pie', label: 'Distribution', icon: '🥧' },
+    { id: 'bar', label: 'Comparison', icon: '📊' },
+    { id: 'correlation', label: 'Correlation', icon: '🔗' }
+  ];
+
+  // Trend chart sub-options
+  const trendChartOptions = [
+    { id: 'revenue', label: 'Revenue Trend', icon: '💰' },
+    { id: 'performance', label: 'Lead Performance', icon: '👥' }
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -51,24 +67,78 @@ function Dashboard() {
         {/* KPI Summary Cards */}
         <KPISummary data={selectedPayload.result} />
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <TrendLineChart 
-            data={selectedPayload.result} 
-            title="Trend Analysis" 
-          />
-          <DistributionPieChart 
-            data={selectedPayload.result} 
-            title="Distribution Breakdown" 
-          />
+        {/* Chart Toggle Buttons */}
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 w-full mb-2">Visualizations:</h3>
+            {chartOptions.map((option) => (
+              <button
+                key={option.id}
+                onClick={() => setActiveChart(option.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  activeChart === option.id
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <span>{option.icon}</span>
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Bar Chart */}
+        {/* Active Chart Display */}
         <div className="mb-8">
-          <ComparisonBarChart 
-            data={selectedPayload.result} 
-            title="Comparative Analysis" 
-          />
+          {activeChart === 'trend' && (
+            <div>
+              {/* Trend Chart Sub-Toggle */}
+              <div className="mb-4">
+                <div className="flex gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200 w-fit">
+                  {trendChartOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setActiveTrendChart(option.id)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                        activeTrendChart === option.id
+                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <span>{option.icon}</span>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Render the selected trend chart */}
+              <TrendLineChart 
+                key={activeTrendChart} // Force re-mount when chart type changes
+                data={selectedPayload} 
+                title={activeTrendChart === 'revenue' ? 'Revenue & Growth Trend' : 'Lead Performance Trend'}
+                chartType={activeTrendChart}
+              />
+            </div>
+          )}
+          {activeChart === 'pie' && (
+            <DistributionPieChart 
+              data={selectedPayload.result} 
+              title="Distribution Breakdown" 
+            />
+          )}
+          {activeChart === 'bar' && (
+            <ComparisonBarChart 
+              data={selectedPayload.result} 
+              title="Comparative Analysis" 
+            />
+          )}
+          {activeChart === 'correlation' && (
+            <CorrelationChart 
+              data={selectedPayload.result} 
+              title="Correlation Analysis" 
+            />
+          )}
         </div>
 
         {/* Main Content - Original Payload Viewer */}
