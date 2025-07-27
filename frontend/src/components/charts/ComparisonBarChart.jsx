@@ -14,11 +14,54 @@ function ComparisonBarChart({ data, title }) {
     '#F97316'  // Orange
   ];
 
-  const chartData = data.tableData?.rows.map(row => ({
-    name: row.INDUSTRY || row.LEAD_SOURCE || 'Item',
-    value: row.TOTAL_REVENUE ? row.TOTAL_REVENUE / 1000000 : row.CONVERSION_RATE * 100 || 0,
-    secondary: row.TOTAL_LEADS || null
-  })) || [];
+  // Handle different payload types
+  let chartData = [];
+  
+  if (data.id === 3) {
+    // ID3 - Sales Rep Performance Comparison
+    chartData = data.result.tableData.rows.map(rep => ({
+      name: rep.REP_NAME.split(' ')[0], // First name
+      fullName: rep.REP_NAME,
+      revenue: Math.round(rep.TOTAL_REVENUE / 1000), // Revenue in $k
+      quota: Math.round(rep.QUOTA_ATTAINMENT * 100), // Quota percentage
+      deals: rep.DEALS_COUNT,
+      avgDeal: Math.round(rep.AVG_DEAL_SIZE / 1000) // Avg deal size in $k
+    }));
+  } else {
+    // ID1 & ID2 - Original logic
+    chartData = data.result?.tableData?.rows.map(row => ({
+      name: row.INDUSTRY || row.LEAD_SOURCE || 'Item',
+      value: row.TOTAL_REVENUE ? row.TOTAL_REVENUE / 1000000 : row.CONVERSION_RATE * 100 || 0,
+      secondary: row.TOTAL_LEADS || null
+    })) || [];
+  }
+
+  // Custom tooltip for different data types
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const item = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border rounded-lg shadow-lg">
+          <p className="font-semibold">{item.fullName || label}</p>
+          {item.revenue ? (
+            // ID3 - Sales Rep data
+            <>
+              <p style={{ color: payload[0].color }}>Revenue: ${item.revenue}k</p>
+              <p className="text-sm text-gray-600">Quota: {item.quota}%</p>
+              <p className="text-sm text-gray-600">Deals: {item.deals}</p>
+              <p className="text-sm text-gray-600">Avg Deal: ${item.avgDeal}k</p>
+            </>
+          ) : (
+            // Original data
+            <p style={{ color: payload[0].color }}>
+              {payload[0].name}: {payload[0].value}
+            </p>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <motion.div
@@ -33,29 +76,33 @@ function ComparisonBarChart({ data, title }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey="name" />
           <YAxis />
-          <Tooltip 
-            formatter={(value, name, props) => [
-              data.kpi === 'sales revenue' ? `$${value.toFixed(2)}M` : `${value.toFixed(1)}%`,
-              name
-            ]}
-            labelStyle={{ fontWeight: 'bold', color: '#374151' }}
-            contentStyle={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-              border: '1px solid #e0e0e0',
-              borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-            }}
-          />
+          <Tooltip content={<CustomTooltip />} />
           <Legend />
-          <Bar 
-            dataKey="value" 
-            name={data.kpi === 'sales revenue' ? 'Revenue (M$)' : 'Rate (%)'}
-            radius={[8, 8, 0, 0]}
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-            ))}
-          </Bar>
+          {data.id === 3 ? (
+            // ID3 - Sales Rep bars with revenue and quota
+            <>
+              <Bar 
+                dataKey="revenue" 
+                name="Revenue ($k)"
+                radius={[8, 8, 0, 0]}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
+              </Bar>
+            </>
+          ) : (
+            // Original bar chart
+            <Bar 
+              dataKey="value" 
+              name={data.kpi === 'sales revenue' ? 'Revenue (M$)' : 'Rate (%)'}
+              radius={[8, 8, 0, 0]}
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+              ))}
+            </Bar>
+          )}
         </BarChart>
       </ResponsiveContainer>
     </motion.div>

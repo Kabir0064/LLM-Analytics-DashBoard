@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PayloadViewer from '../components/data/PayloadViewer';
 import KPISummary from '../components/charts/KPISummary';
 import TrendLineChart from '../components/charts/TrendLineChart';
@@ -10,8 +10,24 @@ import CorrelationChart from '../components/charts/CorrelationChart';
 function Dashboard() {
   const [selectedPayloadId, setSelectedPayloadId] = useState(samplePayloads[0].id);
   const [activeChart, setActiveChart] = useState('trend');
-  const [activeTrendChart, setActiveTrendChart] = useState('revenue'); // New state for trend sub-charts
   const selectedPayload = samplePayloads.find(p => p.id === selectedPayloadId);
+  
+  // Dynamic default for trend chart based on KPI type and payload
+  const getDefaultTrendChart = () => {
+    if (selectedPayload.kpi === 'sales revenue') {
+      if (selectedPayload.id === 3) return 'ranking'; // ID3 - Sales Rep ranking
+      return 'revenue'; // ID1 - Industry revenue
+    }
+    if (selectedPayload.kpi === 'lead conversion rate') return 'conversion';
+    return 'revenue';
+  };
+  
+  const [activeTrendChart, setActiveTrendChart] = useState(getDefaultTrendChart());
+
+  // Reset trend chart when payload changes
+  useEffect(() => {
+    setActiveTrendChart(getDefaultTrendChart());
+  }, [selectedPayloadId]);
 
   // Chart options
   const chartOptions = [
@@ -21,11 +37,35 @@ function Dashboard() {
     { id: 'correlation', label: 'Correlation', icon: '🔗' }
   ];
 
-  // Trend chart sub-options
-  const trendChartOptions = [
-    { id: 'revenue', label: 'Revenue Trend', icon: '💰' },
-    { id: 'performance', label: 'Lead Performance', icon: '👥' }
-  ];
+  // Trend chart sub-options - dynamic based on KPI type and payload
+  const getTrendChartOptions = () => {
+    if (selectedPayload.kpi === 'sales revenue') {
+      if (selectedPayload.id === 3) {
+        // ID3 - Sales Rep performance analysis
+        return [
+          { id: 'ranking', label: 'Rep Ranking', icon: '🏆' },
+          { id: 'performance', label: 'Monthly Performance', icon: '📈' }
+        ];
+      } else {
+        // ID1 - Industry revenue analysis
+        return [
+          { id: 'revenue', label: 'Revenue Trend', icon: '💰' },
+          { id: 'performance', label: 'Lead Performance', icon: '👥' }
+        ];
+      }
+    } else if (selectedPayload.kpi === 'lead conversion rate') {
+      return [
+        { id: 'conversion', label: 'Conversion Trends', icon: '📈' },
+        { id: 'sources', label: 'Source Performance', icon: '🎯' }
+      ];
+    }
+    return [
+      { id: 'revenue', label: 'Revenue Trend', icon: '💰' },
+      { id: 'performance', label: 'Lead Performance', icon: '👥' }
+    ];
+  };
+
+  const trendChartOptions = getTrendChartOptions();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -116,26 +156,30 @@ function Dashboard() {
               <TrendLineChart 
                 key={activeTrendChart} // Force re-mount when chart type changes
                 data={selectedPayload} 
-                title={activeTrendChart === 'revenue' ? 'Revenue & Growth Trend' : 'Lead Performance Trend'}
+                title={
+                  selectedPayload.kpi === 'sales revenue' 
+                    ? (activeTrendChart === 'revenue' ? 'Revenue & Growth Trend' : 'Lead Performance Trend')
+                    : (activeTrendChart === 'conversion' ? 'Conversion Rate Trends' : 'Lead Source Performance')
+                }
                 chartType={activeTrendChart}
               />
             </div>
           )}
           {activeChart === 'pie' && (
             <DistributionPieChart 
-              data={selectedPayload.result} 
+              data={selectedPayload} 
               title="Distribution Breakdown" 
             />
           )}
           {activeChart === 'bar' && (
             <ComparisonBarChart 
-              data={selectedPayload.result} 
+              data={selectedPayload} 
               title="Comparative Analysis" 
             />
           )}
           {activeChart === 'correlation' && (
             <CorrelationChart 
-              data={selectedPayload.result} 
+              data={selectedPayload} 
               title="Correlation Analysis" 
             />
           )}
