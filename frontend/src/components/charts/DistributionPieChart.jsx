@@ -1,7 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 
-function DistributionPieChart({ data, title }) {
+function DistributionPieChart({ data, title, selectedYear = '2025' }) {
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
   // Handle different payload types
@@ -15,6 +15,22 @@ function DistributionPieChart({ data, title }) {
       value: Math.round(rep.TOTAL_REVENUE / 1000), // Convert to $k
       quota: Math.round(rep.QUOTA_ATTAINMENT * 100), // Quota percentage
       deals: rep.DEALS_COUNT
+    }));
+  } else if (data.id === 4) {
+    // ID4 - Industry Conversion Distribution (2025 data)
+    const currentYearData = data.result.tableData.rows.filter(row => row.YEAR === 2025);
+    chartData = currentYearData.map(row => ({
+      name: row.INDUSTRY,
+      value: parseFloat((row.CONVERSION_RATE * 100).toFixed(1)), // Convert to percentage
+      totalLeads: row.TOTAL_LEADS,
+      converted: row.CONVERTED_LEADS
+    }));
+  } else if (data.id === 4) {
+    // ID4 - Industry conversion distribution for selected year
+    const yearData = data.result.tableData.rows.filter(row => row.YEAR.toString() === selectedYear);
+    chartData = yearData.map(industryRow => ({
+      name: industryRow.INDUSTRY,
+      value: industryRow.CONVERTED_LEADS // Use converted leads as the value
     }));
   } else {
     // ID1 & ID2 - Original logic
@@ -32,13 +48,21 @@ function DistributionPieChart({ data, title }) {
         <div className="bg-white p-3 border rounded-lg shadow-lg">
           <p className="font-semibold">{item.fullName || item.name}</p>
           <p style={{ color: payload[0].color }}>
-            {data.id === 3 ? `Revenue: $${item.value}k` : `Value: ${item.value.toLocaleString()}`}
+            {data.id === 3 ? `Revenue: $${item.value}k` : 
+             data.id === 4 ? `Conversion Rate: ${item.value}%` :
+             `Value: ${item.value.toLocaleString()}`}
           </p>
           {item.quota && (
             <p className="text-sm text-gray-600">Quota: {item.quota}%</p>
           )}
           {item.deals && (
             <p className="text-sm text-gray-600">Deals: {item.deals}</p>
+          )}
+          {item.totalLeads && (
+            <>
+              <p className="text-sm text-gray-600">Total Leads: {item.totalLeads}</p>
+              <p className="text-sm text-gray-600">Converted: {item.converted}</p>
+            </>
           )}
         </div>
       );

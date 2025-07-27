@@ -1,7 +1,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 
-function TrendLineChart({ data, title, chartType = 'revenue' }) {
+function TrendLineChart({ data, title, chartType = 'revenue', selectedYear = 2025 }) {
   // Determine if we have time series data (for sales revenue)
   const hasTimeSeries = Array.isArray(data.result?.timeSeriesData) && data.result.timeSeriesData.length > 0;
 
@@ -144,26 +144,56 @@ if (hasTimeSeries && data.kpi === 'sales revenue' && data.id !== 3) {
   
 } else if (data.kpi === 'lead conversion rate') {
   if (chartType === 'conversion') {
-    // Conversion Rate Trends - Overall aggregated trends
-    chartData = createTimeSeriesFromRows();
+    // For ID4 - Show yearly trends by industry (filtered by selectedYear)
+    if (data.id === 4) {
+      const yearData = data.result.tableData.rows.filter(row => row.YEAR === selectedYear);
+      chartData = yearData.map(row => ({
+        name: row.INDUSTRY,
+        'Conversion Rate': parseFloat((row.CONVERSION_RATE * 100).toFixed(1)),
+        'Total Leads': row.TOTAL_LEADS,
+        'Converted Leads': row.CONVERTED_LEADS
+      }));
+    } else {
+      // For other payloads, use the existing logic  
+      chartData = createTimeSeriesFromRows();
+    }
   } else if (chartType === 'sources') {
-    // Individual Source Performance - Show top 3 sources
-    const topSources = data.result.tableData.rows
-      .sort((a, b) => b.CONVERSION_RATE - a.CONVERSION_RATE)
-      .slice(0, 3);
-    
-    // Create time series for each top source
-    const months = ['Jul 24', 'Aug 24', 'Sep 24', 'Oct 24', 'Nov 24', 'Dec 24'];
-    chartData = months.map(month => {
-      const dataPoint = { name: month };
-      topSources.forEach(source => {
-        const monthData = source.MONTHLY_DATA.find(m => formatMonth(m.month) === month);
-        if (monthData) {
-          dataPoint[source.LEAD_SOURCE] = parseFloat((monthData.rate * 100).toFixed(1));
-        }
+    // For ID4 - Show industry comparison across years
+    if (data.id === 4) {
+      const industries = [...new Set(data.result.tableData.rows.map(row => row.INDUSTRY))];
+      const years = [2023, 2024, 2025];
+      
+      chartData = years.map(year => {
+        const dataPoint = { name: year.toString() };
+        industries.forEach(industry => {
+          const industryData = data.result.tableData.rows.find(row => 
+            row.INDUSTRY === industry && row.YEAR === year
+          );
+          if (industryData) {
+            dataPoint[industry] = parseFloat((industryData.CONVERSION_RATE * 100).toFixed(1));
+          }
+        });
+        return dataPoint;
       });
-      return dataPoint;
-    });
+    } else {
+      // For other payloads, use the existing logic with monthly data
+      const topSources = data.result.tableData.rows
+        .sort((a, b) => b.CONVERSION_RATE - a.CONVERSION_RATE)
+        .slice(0, 3);
+      
+      // Create time series for each top source
+      const months = ['Jul 24', 'Aug 24', 'Sep 24', 'Oct 24', 'Nov 24', 'Dec 24'];
+      chartData = months.map(month => {
+        const dataPoint = { name: month };
+        topSources.forEach(source => {
+          const monthData = source.MONTHLY_DATA.find(m => formatMonth(m.month) === month);
+          if (monthData) {
+            dataPoint[source.LEAD_SOURCE] = parseFloat((monthData.rate * 100).toFixed(1));
+          }
+        });
+        return dataPoint;
+      });
+    }
   }
 } else {
   // For other KPIs, use the existing logic

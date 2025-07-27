@@ -10,6 +10,7 @@ import CorrelationChart from '../components/charts/CorrelationChart';
 function Dashboard() {
   const [selectedPayloadId, setSelectedPayloadId] = useState(samplePayloads[0].id);
   const [activeChart, setActiveChart] = useState('trend');
+  const [selectedYear, setSelectedYear] = useState(2025); // Default to 2025
   const selectedPayload = samplePayloads.find(p => p.id === selectedPayloadId);
   
   // Dynamic default for trend chart based on KPI type and payload
@@ -54,10 +55,18 @@ function Dashboard() {
         ];
       }
     } else if (selectedPayload.kpi === 'lead conversion rate') {
-      return [
-        { id: 'conversion', label: 'Conversion Trends', icon: '📈' },
-        { id: 'sources', label: 'Source Performance', icon: '🎯' }
-      ];
+      if (selectedPayload.id === 4) {
+        // ID4 - Industry Lead Conversion Analysis
+        return [
+          { id: 'conversion', label: 'Industry Comparison', icon: '🏢' },
+          { id: 'sources', label: 'Year-over-Year Trends', icon: '📊' }
+        ];
+      } else {
+        return [
+          { id: 'conversion', label: 'Conversion Trends', icon: '📈' },
+          { id: 'sources', label: 'Source Performance', icon: '🎯' }
+        ];
+      }
     }
     return [
       { id: 'revenue', label: 'Revenue Trend', icon: '💰' },
@@ -91,17 +100,37 @@ function Dashboard() {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Select Analysis
           </label>
-          <select
-            value={selectedPayloadId}
-            onChange={(e) => setSelectedPayloadId(Number(e.target.value))}
-            className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {samplePayloads.map(payload => (
-              <option key={payload.id} value={payload.id}>
-                {payload.title}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-col md:flex-row gap-4">
+            <select
+              value={selectedPayloadId}
+              onChange={(e) => setSelectedPayloadId(Number(e.target.value))}
+              className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {samplePayloads.map(payload => (
+                <option key={payload.id} value={payload.id}>
+                  {payload.title}
+                </option>
+              ))}
+            </select>
+            
+            {/* Year Selector - Only show for ID4 */}
+            {selectedPayload.id === 4 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Year
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="w-full md:w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value={2025}>2025</option>
+                  <option value={2024}>2024</option>
+                  <option value={2023}>2023</option>
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* KPI Summary Cards */}
@@ -159,9 +188,12 @@ function Dashboard() {
                 title={
                   selectedPayload.kpi === 'sales revenue' 
                     ? (activeTrendChart === 'revenue' ? 'Revenue & Growth Trend' : 'Lead Performance Trend')
-                    : (activeTrendChart === 'conversion' ? 'Conversion Rate Trends' : 'Lead Source Performance')
+                    : selectedPayload.id === 4 
+                      ? (activeTrendChart === 'conversion' ? `Industry Conversion Rates (${selectedYear})` : 'Industry Comparison Across Years')
+                      : (activeTrendChart === 'conversion' ? 'Conversion Rate Trends' : 'Lead Source Performance')
                 }
                 chartType={activeTrendChart}
+                selectedYear={selectedYear}
               />
             </div>
           )}
