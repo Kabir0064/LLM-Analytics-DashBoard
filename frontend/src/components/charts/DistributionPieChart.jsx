@@ -1,15 +1,101 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 
-function DistributionPieChart({ data, title }) {
+function DistributionPieChart({ data, title, selectedYear = '2025' }) {
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
-  const chartData = data.tableData?.rows.map(row => ({
-    name: row.INDUSTRY || row.LEAD_SOURCE || 'Item',
-    value: row.TOTAL_REVENUE || row.CONVERTED_LEADS || 0
-  })) || [];
+  // Handle different payload types
+  let chartData = [];
+  
+  if (data.id === 11) {
+    // ID11 - Total Revenue Distribution by Industry (aggregated across all quarters)
+    const industryTotals = {};
+    data.result.tableData.rows.forEach(row => {
+      if (!industryTotals[row.INDUSTRY]) {
+        industryTotals[row.INDUSTRY] = 0;
+      }
+      industryTotals[row.INDUSTRY] += row.REVENUE;
+    });
+    
+    chartData = Object.entries(industryTotals).map(([industry, revenue]) => ({
+      name: industry,
+      value: Math.round(revenue / 1000), // Convert to $k
+      percentage: ((revenue / Object.values(industryTotals).reduce((sum, val) => sum + val, 0)) * 100).toFixed(1)
+    }));
+  } else if (data.id === 3) {
+    // ID3 - Sales Rep Revenue Distribution
+    chartData = data.result.tableData.rows.map(rep => ({
+      name: rep.REP_NAME.split(' ')[0], // First name only
+      fullName: rep.REP_NAME,
+      value: Math.round(rep.TOTAL_REVENUE / 1000), // Convert to $k
+      quota: Math.round(rep.QUOTA_ATTAINMENT * 100), // Quota percentage
+      deals: rep.DEALS_COUNT
+    }));
+  } else if (data.id === 4) {
+    // ID4 - Industry Conversion Distribution (2025 data)
+    const currentYearData = data.result.tableData.rows.filter(row => row.YEAR === 2025);
+    chartData = currentYearData.map(row => ({
+      name: row.INDUSTRY,
+      value: parseFloat((row.CONVERSION_RATE * 100).toFixed(1)), // Convert to percentage
+      totalLeads: row.TOTAL_LEADS,
+      converted: row.CONVERTED_LEADS
+    }));
+  } else if (data.id === 4) {
+    // ID4 - Industry conversion distribution for selected year
+    const yearData = data.result.tableData.rows.filter(row => row.YEAR.toString() === selectedYear);
+    chartData = yearData.map(industryRow => ({
+      name: industryRow.INDUSTRY,
+      value: industryRow.CONVERTED_LEADS // Use converted leads as the value
+    }));
+  } else if (data.id === 5) {
+    // ID5 - Yearly conversion distribution
+    chartData = data.result.tableData.rows.map(row => ({
+      name: row.YEAR.toString(),
+      value: row.CONVERTED_LEADS,
+      totalLeads: row.TOTAL_LEADS,
+      conversionRate: parseFloat((row.CONVERSION_RATE * 100).toFixed(1))
+    }));
+  } else {
+    // ID1 & ID2 - Original logic
+    chartData = data.result?.tableData?.rows.map(row => ({
+      name: row.INDUSTRY || row.LEAD_SOURCE || 'Item',
+      value: row.TOTAL_REVENUE || row.CONVERTED_LEADS || 0
+    })) || [];
+  }
 
-  return (
+  // Custom tooltip for different data types
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const item = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border rounded-lg shadow-lg">
+          <p className="font-semibold">{item.fullName || item.name}</p>
+          <p style={{ color: payload[0].color }}>
+            {data.id === 11 ? `Revenue: $${item.value}k` :
+             data.id === 3 ? `Revenue: $${item.value}k` : 
+             data.id === 4 ? `Conversion Rate: ${item.value}%` :
+             `Value: ${item.value.toLocaleString()}`}
+          </p>
+          {data.id === 11 && item.percentage && (
+            <p className="text-sm text-gray-600">Market Share: {item.percentage}%</p>
+          )}
+          {item.quota && (
+            <p className="text-sm text-gray-600">Quota: {item.quota}%</p>
+          )}
+          {item.deals && (
+            <p className="text-sm text-gray-600">Deals: {item.deals}</p>
+          )}
+          {item.totalLeads && (
+            <>
+              <p className="text-sm text-gray-600">Total Leads: {item.totalLeads}</p>
+              <p className="text-sm text-gray-600">Converted: {item.converted}</p>
+            </>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };  return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -33,14 +119,7 @@ function DistributionPieChart({ data, title }) {
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-              border: '1px solid #e0e0e0',
-              borderRadius: '8px'
-            }}
-            formatter={(value) => value.toLocaleString()}
-          />
+          <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
     </motion.div>

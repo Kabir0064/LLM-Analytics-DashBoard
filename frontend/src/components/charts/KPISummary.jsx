@@ -38,6 +38,111 @@ function KPISummary({ data }) {
       
       return count > 0 ? (totalGrowth / count).toFixed(1) : 0;
     };
+
+    // Special handling for ID4 - industry lead conversion data
+    if (data.id === 4) {
+      // Filter for 2025 data
+      const currentYearData = rows.filter(row => row.YEAR === 2025);
+      const avgConversion = currentYearData.reduce((sum, row) => sum + (row.CONVERSION_RATE || 0), 0) / currentYearData.length;
+      const totalLeads = currentYearData.reduce((sum, row) => sum + (row.TOTAL_LEADS || 0), 0);
+      const totalConverted = currentYearData.reduce((sum, row) => sum + (row.CONVERTED_LEADS || 0), 0);
+      
+      // Find best performing industry
+      const bestIndustry = currentYearData.sort((a, b) => b.CONVERSION_RATE - a.CONVERSION_RATE)[0];
+      
+      // Calculate year-over-year growth
+      const industryYoYGrowth = {};
+      ['Education', 'Finance', 'Health', 'Retail', 'Tech'].forEach(industry => {
+        const data2025 = rows.find(r => r.INDUSTRY === industry && r.YEAR === 2025);
+        const data2024 = rows.find(r => r.INDUSTRY === industry && r.YEAR === 2024);
+        if (data2025 && data2024) {
+          industryYoYGrowth[industry] = ((data2025.CONVERSION_RATE - data2024.CONVERSION_RATE) / data2024.CONVERSION_RATE * 100).toFixed(1);
+        }
+      });
+      
+      const avgYoYGrowth = Object.values(industryYoYGrowth).reduce((sum, val) => sum + parseFloat(val), 0) / Object.values(industryYoYGrowth).length;
+      
+      return [
+        {
+          title: 'Avg Conversion',
+          value: `${(avgConversion * 100).toFixed(1)}%`,
+          change: `${avgYoYGrowth > 0 ? '+' : ''}${avgYoYGrowth.toFixed(1)}% YoY`,
+          trend: avgYoYGrowth > 0 ? 'up' : 'down',
+          icon: 'target'
+        },
+        {
+          title: 'Total Leads (2025)',
+          value: totalLeads.toLocaleString(),
+          change: `${totalConverted} converted`,
+          trend: 'up',
+          icon: 'users'
+        },
+        {
+          title: 'Best Industry',
+          value: bestIndustry?.INDUSTRY || 'N/A',
+          change: `${(bestIndustry?.CONVERSION_RATE * 100).toFixed(1)}%`,
+          trend: 'up',
+          icon: 'revenue'
+        },
+        {
+          title: 'Analysis Period',
+          value: '3 Years',
+          change: '2023-2025',
+          trend: 'neutral',
+          icon: 'activity'
+        }
+      ];
+    }
+
+    // Special handling for ID5 - overall yearly conversion data
+    if (data.id === 5) {
+      // Calculate metrics for ID5
+      const avgConversion = rows.reduce((sum, row) => sum + (row.CONVERSION_RATE || 0), 0) / rows.length;
+      const totalLeads = rows.reduce((sum, row) => sum + (row.TOTAL_LEADS || 0), 0);
+      const totalConverted = rows.reduce((sum, row) => sum + (row.CONVERTED_LEADS || 0), 0);
+      
+      // Find best performing year
+      const bestYear = rows.reduce((best, row) => 
+        (row.CONVERSION_RATE || 0) > (best.CONVERSION_RATE || 0) ? row : best
+      );
+      
+      // Calculate year-over-year trend
+      const recentYears = rows.slice(0, 2); // 2024 and 2023
+      const yoyChange = recentYears.length === 2 
+        ? ((recentYears[0].CONVERSION_RATE - recentYears[1].CONVERSION_RATE) / recentYears[1].CONVERSION_RATE * 100)
+        : 0;
+
+      return [
+        {
+          title: 'Average Conversion Rate',
+          value: `${(avgConversion * 100).toFixed(1)}%`,
+          change: `${yoyChange.toFixed(1)}% YoY`,
+          trend: yoyChange > 0 ? 'up' : 'down',
+          icon: 'target'
+        },
+        {
+          title: 'Total Leads (3 Years)',
+          value: totalLeads.toLocaleString(),
+          change: `${totalConverted.toLocaleString()} converted`,
+          trend: 'up',
+          icon: 'users'
+        },
+        {
+          title: 'Best Performance',
+          value: bestYear?.YEAR || 'N/A',
+          change: `${(bestYear?.CONVERSION_RATE * 100).toFixed(1)}%`,
+          trend: 'up',
+          icon: 'revenue'
+        },
+        {
+          title: 'Analysis Period',
+          value: '3 Years',
+          change: '2022-2024',
+          trend: 'neutral',
+          icon: 'activity'
+        }
+      ];
+    }
     
     // Generic calculations based on available data
     if (data.kpi === 'sales revenue') {

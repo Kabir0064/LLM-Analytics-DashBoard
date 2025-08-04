@@ -1,15 +1,22 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 
-function TrendLineChart({ data, title }) {
+function TrendLineChart({ data, title, chartType = 'revenue', selectedYear = 2025 }) {
   // Determine if we have time series data (for sales revenue)
-  const hasTimeSeries = Array.isArray(data.timeSeriesData) && data.timeSeriesData.length > 0;
+  const hasTimeSeries = Array.isArray(data.result?.timeSeriesData) && data.result.timeSeriesData.length > 0;
 
-  // Helper to format month for display
+  // Helper function to format month for display
   const formatMonth = (monthStr) => {
-    const [year, month] = monthStr.split('-');
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${monthNames[parseInt(month) - 1]} ${year.substr(2)}`;
+    // Handle both "Sep 2024" and "2024-09" formats
+    if (monthStr.includes(' ')) {
+      // Format is already "Sep 2024", return as is
+      return monthStr;
+    } else {
+      // Format is "2024-09", convert to "Sep 24"
+      const [year, month] = monthStr.split('-');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${monthNames[parseInt(month) - 1]} ${year.substr(2)}`;
+    }
   };
 
   // Aggregate MONTHLY_DATA for lead conversion rate
@@ -59,7 +66,7 @@ function TrendLineChart({ data, title }) {
   // };
 
   const createTimeSeriesFromRows = () => {
-    const rowsWithMonthly = (data.tableData?.rows || []).filter(row => Array.isArray(row.MONTHLY_DATA));
+    const rowsWithMonthly = (data.result?.tableData?.rows || []).filter(row => Array.isArray(row.MONTHLY_DATA));
     if (rowsWithMonthly.length === 0) return [];
     const monthlyAggregated = {};
     rowsWithMonthly.forEach(row => {
@@ -91,15 +98,220 @@ function TrendLineChart({ data, title }) {
 
   // Build chart data for the chart
 let chartData = [];
-if (hasTimeSeries && data.kpi === 'sales revenue') {
-  chartData = data.timeSeriesData.map(item => ({
-    name: formatMonth(item.month),
-    Revenue: Math.round(item.total / 1000), // $k
-    'Growth %': parseFloat((item.avg_growth * 100).toFixed(1)),
-  }));
+if (data.id === 11) {
+  // ID11 - Quarterly Revenue by Industry (Multiple industry trend lines)
+  const quarters = [...new Set(data.result.tableData.rows.map(row => row.QUARTER))].sort();
+  const industries = [...new Set(data.result.tableData.rows.map(row => row.INDUSTRY))];
+  
+  if (chartType === 'industry-trends') {
+    // Show all industries as separate trend lines
+    chartData = quarters.map(quarter => {
+      const quarterData = data.result.tableData.rows.filter(row => row.QUARTER === quarter);
+      const quarterObj = {
+        name: new Date(quarter).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
+        fullQuarter: quarter
+      };
+      
+      // Add revenue for each industry
+      quarterData.forEach(row => {
+        quarterObj[row.INDUSTRY] = Math.round(row.REVENUE / 1000); // Revenue in $k
+      });
+      
+      return quarterObj;
+    });
+  } else if (chartType === 'market-share') {
+    // Show market share percentage trends
+    chartData = quarters.map(quarter => {
+      const quarterData = data.result.tableData.rows.filter(row => row.QUARTER === quarter);
+      const totalRevenue = quarterData.reduce((sum, row) => sum + row.REVENUE, 0);
+      
+      const quarterObj = {
+        name: new Date(quarter).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
+        fullQuarter: quarter
+      };
+      
+      // Calculate market share percentage for each industry
+      quarterData.forEach(row => {
+        quarterObj[row.INDUSTRY] = parseFloat(((row.REVENUE / totalRevenue) * 100).toFixed(1));
+      });
+      
+      return quarterObj;
+    });
+  }
+} else if (hasTimeSeries && data.kpi === 'sales revenue' && data.id !== 3) {
+  if (chartType === 'revenue') {
+    // Revenue & Growth chart - ONLY revenue and growth metrics
+    chartData = data.result.timeSeriesData.map(item => ({
+      name: item.month,
+      Revenue: Math.round(item.total / 1000), // Convert to $k
+      'Growth Rate': parseFloat((item.avg_growth * 100).toFixed(1)) // Growth percentage
+    }));
+  } else if (chartType === 'performance') {
+    // Lead Performance chart - ONLY lead volume and conversion metrics
+    chartData = data.result.timeSeriesData.map(item => ({
+      name: item.month,
+      'Lead Volume': item.lead_volume || 0,
+      'Conversion Rate': item.conversion_rate || 0
+    }));
+  }
+  
+} else if (data.kpi === 'sales revenue' && data.id === 3) {
+  // ID3 - Sales Rep analysis
+  if (chartType === 'ranking') {
+    // Sales Rep Revenue Ranking - Bar chart data
+    chartData = data.result.tableData.rows.map(rep => ({
+      name: rep.REP_NAME.split(' ')[0], // First name for x-axis
+      fullName: rep.REP_NAME,
+      Revenue: Math.round(rep.TOTAL_REVENUE / 1000), // Convert to $k
+      'Deals Count': rep.DEALS_COUNT,
+      'Quota Attainment': Math.round(rep.QUOTA_ATTAINMENT * 100) // Convert to percentage
+    }));
+  } else if (chartType === 'performance') {
+    // Monthly Performance Trends - Show top 3 reps over time
+    const topReps = data.result.tableData.rows.slice(0, 3);
+    const months = ['Jul 24', 'Aug 24', 'Sep 24', 'Oct 24', 'Nov 24', 'Dec 24'];
+    chartData = months.map(month => {
+      const dataPoint = { name: month };
+      topReps.forEach(rep => {
+        const monthData = rep.MONTHLY_PERFORMANCE.find(m => formatMonth(m.month) === month);
+        if (monthData) {
+          dataPoint[rep.REP_NAME.split(' ')[0]] = Math.round(monthData.revenue / 1000);
+        }
+      });
+      return dataPoint;
+    });
+  }
+  
+} else if (data.kpi === 'lead conversion rate') {
+  if (chartType === 'conversion') {
+    // For ID4 - Show yearly trends by industry (filtered by selectedYear)
+    if (data.id === 4) {
+      const yearData = data.result.tableData.rows.filter(row => row.YEAR === selectedYear);
+      chartData = yearData.map(row => ({
+        name: row.INDUSTRY,
+        'Conversion Rate': parseFloat((row.CONVERSION_RATE * 100).toFixed(1)),
+        'Total Leads': row.TOTAL_LEADS,
+        'Converted Leads': row.CONVERTED_LEADS
+      }));
+    } else if (data.id === 5) {
+      // For ID5 - Show comprehensive yearly trends with both conversion rate and volume
+      chartData = data.result.tableData.rows
+        .sort((a, b) => a.YEAR - b.YEAR) // Sort by year ascending for better trend visualization
+        .map(row => ({
+          name: row.YEAR.toString(),
+          'Conversion Rate': parseFloat((row.CONVERSION_RATE * 100).toFixed(1)),
+          'Total Leads': Math.round(row.TOTAL_LEADS / 100) * 100, // Round to hundreds for better chart readability
+          'Converted Leads': row.CONVERTED_LEADS
+        }));
+    } else {
+      // For other payloads, use the existing logic  
+      chartData = createTimeSeriesFromRows();
+    }
+  } else if (chartType === 'sources') {
+    // For ID4 - Show industry comparison across years
+    if (data.id === 4) {
+      const industries = [...new Set(data.result.tableData.rows.map(row => row.INDUSTRY))];
+      const years = [2023, 2024, 2025];
+      
+      chartData = years.map(year => {
+        const dataPoint = { name: year.toString() };
+        industries.forEach(industry => {
+          const industryData = data.result.tableData.rows.find(row => 
+            row.INDUSTRY === industry && row.YEAR === year
+          );
+          if (industryData) {
+            dataPoint[industry] = parseFloat((industryData.CONVERSION_RATE * 100).toFixed(1));
+          }
+        });
+        return dataPoint;
+      });
+    } else {
+      // For other payloads, use the existing logic with monthly data
+      const topSources = data.result.tableData.rows
+        .sort((a, b) => b.CONVERSION_RATE - a.CONVERSION_RATE)
+        .slice(0, 3);
+      
+      // Create time series for each top source
+      const months = ['Jul 24', 'Aug 24', 'Sep 24', 'Oct 24', 'Nov 24', 'Dec 24'];
+      chartData = months.map(month => {
+        const dataPoint = { name: month };
+        topSources.forEach(source => {
+          const monthData = source.MONTHLY_DATA.find(m => formatMonth(m.month) === month);
+          if (monthData) {
+            dataPoint[source.LEAD_SOURCE] = parseFloat((monthData.rate * 100).toFixed(1));
+          }
+        });
+        return dataPoint;
+      });
+    }
+  }
 } else {
+  // For other KPIs, use the existing logic
   chartData = createTimeSeriesFromRows();
 }
+
+  // Helper function to calculate trend direction
+  const calculateTrend = (chartDataArray) => {
+    if (!chartDataArray || chartDataArray.length < 2) return { direction: 'stable', change: 0 };
+    
+    const firstValue = chartDataArray[0];
+    const lastValue = chartDataArray[chartDataArray.length - 1];
+    
+    // Get the primary metric value based on chart type
+    let startValue, endValue;
+    
+    if (data.id === 11) {
+      // ID11 - For quarterly revenue, calculate overall market trend
+      if (chartType === 'industry-trends') {
+        // Calculate total revenue change across all industries
+        const industries = ['Tech', 'Finance', 'Health', 'Education', 'Retail'];
+        const startTotal = industries.reduce((sum, industry) => sum + (firstValue[industry] || 0), 0);
+        const endTotal = industries.reduce((sum, industry) => sum + (lastValue[industry] || 0), 0);
+        startValue = startTotal;
+        endValue = endTotal;
+      } else if (chartType === 'market-share') {
+        // For market share, analyze stability (lower change is better)
+        const industries = ['Tech', 'Finance', 'Health', 'Education', 'Retail'];
+        const startShares = industries.map(industry => firstValue[industry] || 0);
+        const endShares = industries.map(industry => lastValue[industry] || 0);
+        const avgStartShare = startShares.reduce((sum, share) => sum + share, 0) / industries.length;
+        const avgEndShare = endShares.reduce((sum, share) => sum + share, 0) / industries.length;
+        startValue = avgStartShare;
+        endValue = avgEndShare;
+      }
+    } else if (chartType === 'conversion' || chartType === 'sources') {
+      startValue = firstValue['Conversion Rate'] || Object.values(firstValue).find(val => typeof val === 'number') || 0;
+      endValue = lastValue['Conversion Rate'] || Object.values(lastValue).find(val => typeof val === 'number') || 0;
+    } else if (chartType === 'ranking') {
+      // For ranking, compare top vs bottom performer
+      startValue = chartDataArray[chartDataArray.length - 1]['Revenue'] || 0; // Bottom performer
+      endValue = chartDataArray[0]['Revenue'] || 0; // Top performer
+      const spread = ((endValue - startValue) / startValue) * 100;
+      return { direction: 'ranking', change: Math.round(spread) };
+    } else if (chartType === 'performance') {
+      // For performance, use the first rep's trend (Michael)
+      const firstRepKey = Object.keys(firstValue).find(key => key !== 'name');
+      if (firstRepKey) {
+        startValue = firstValue[firstRepKey] || 0;
+        endValue = lastValue[firstRepKey] || 0;
+      } else {
+        return { direction: 'stable', change: 0 };
+      }
+    } else {
+      startValue = firstValue['Revenue'] || firstValue['Lead Volume'] || 0;
+      endValue = lastValue['Revenue'] || lastValue['Lead Volume'] || 0;
+    }
+    
+    if (startValue === 0) return { direction: 'stable', change: 0 };
+    
+    const change = ((endValue - startValue) / startValue) * 100;
+    
+    if (change > 5) return { direction: 'improving', change: Math.round(change) };
+    if (change < -5) return { direction: 'declining', change: Math.round(change) };
+    return { direction: 'stable', change: Math.round(change) };
+  };
+
+  const trend = calculateTrend(chartData);
 
   // Custom tooltip for both KPIs
   const CustomTooltip = ({ active, payload, label }) => {
@@ -110,12 +322,24 @@ if (hasTimeSeries && data.kpi === 'sales revenue') {
           {payload.map((entry, index) => (
             <p key={index} style={{ color: entry.color }}>
               {entry.name}: {
-                entry.name.includes('Revenue') ? `$${entry.value}k` :
-                entry.name.includes('Rate') || entry.name.includes('%') ? `${entry.value}%` :
-                entry.value.toLocaleString()
+                data.id === 11 ? (
+                  chartType === 'market-share' 
+                    ? `${entry.value}%` 
+                    : `$${entry.value}k`
+                ) : (
+                  entry.name.includes('Revenue') || entry.name.includes('($k)') ? `$${entry.value}k` :
+                  entry.name.includes('Rate') || entry.name.includes('(%)') || entry.name.includes('Attainment') ? `${entry.value}%` :
+                  entry.value.toLocaleString()
+                )
               }
             </p>
           ))}
+          {/* Show full name for ranking chart */}
+          {chartType === 'ranking' && payload[0]?.payload?.fullName && (
+            <p className="text-xs text-gray-500 mt-1">
+              {payload[0].payload.fullName}
+            </p>
+          )}
         </div>
       );
     }
@@ -123,11 +347,19 @@ if (hasTimeSeries && data.kpi === 'sales revenue') {
   };
 
   // Custom Y-axis tick formatter
-  const formatYAxis = (value) => {
-    if (data.kpi === 'sales revenue') {
-      return `$${value}k`;
+  const formatYAxis = (value, chartType) => {
+    if (data.id === 11) {
+      if (chartType === 'market-share') {
+        return `${Math.round(value * 100) / 100}%`;
+      } else {
+        return `$${Math.round(value)}k`;
+      }
+    } else if (chartType === 'conversion' || chartType === 'sources') {
+      return `${Math.round(value * 100) / 100}%`;
+    } else if (chartType === 'ranking' || chartType === 'performance') {
+      return `$${Math.round(value)}k`;
     }
-    return value;
+    return `$${(value / 1000).toFixed(0)}K`;
   };
 
   return (
@@ -139,9 +371,61 @@ if (hasTimeSeries && data.kpi === 'sales revenue') {
     >
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-        <span className="text-sm text-gray-500">
-          {data.kpi === 'sales revenue' ? 'Monthly Revenue Trend' : 'Conversion Rate Trend'}
-        </span>
+        <div className="flex items-center gap-3">
+          {/* Trend Direction Indicator */}
+          <div className="flex items-center gap-2">
+            {trend.direction === 'improving' && (
+              <>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-green-600">
+                  ↗ Improving (+{trend.change}%)
+                </span>
+              </>
+            )}
+            {trend.direction === 'declining' && (
+              <>
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-red-600">
+                  ↘ Declining ({trend.change}%)
+                </span>
+              </>
+            )}
+            {trend.direction === 'stable' && (
+              <>
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <span className="text-sm font-medium text-yellow-600">
+                  → Stable ({trend.change > 0 ? '+' : ''}{trend.change}%)
+                </span>
+              </>
+            )}
+            {trend.direction === 'ranking' && (
+              <>
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-blue-600">
+                  🏆 Performance Gap ({trend.change}%)
+                </span>
+              </>
+            )}
+          </div>
+          <span className="text-sm text-gray-500">
+            {data.id === 11
+              ? (chartType === 'industry-trends'
+                  ? 'Quarterly Revenue Trends by Industry'
+                  : 'Market Share Evolution by Industry')
+              : data.kpi === 'sales revenue' 
+                ? (data.id === 3 
+                    ? (chartType === 'ranking' 
+                        ? 'Top 5 Sales Rep Revenue Ranking' 
+                        : 'Monthly Performance Trends - Top 3 Reps')
+                    : (chartType === 'revenue' 
+                        ? 'Monthly Revenue & Growth Rate' 
+                        : 'Lead Volume & Conversion Performance'))
+                : (chartType === 'conversion'
+                    ? 'Overall Conversion Rate Trend'
+                    : 'Top 3 Lead Sources Performance')
+            }
+          </span>
+        </div>
       </div>
       {chartData.length === 0 ? (
         <div className="flex items-center justify-center h-48 text-gray-400 text-lg">
@@ -160,32 +444,362 @@ if (hasTimeSeries && data.kpi === 'sales revenue') {
             />
             <YAxis 
               style={{ fontSize: '12px' }}
-              tickFormatter={formatYAxis}
+              tickFormatter={(value) => formatYAxis(value, chartType)}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend />
-            {data.kpi === 'sales revenue' ? (
-              <>
-                <Line 
-                  type="monotone" 
-                  dataKey="Revenue" 
-                  stroke="#3B82F6" 
-                  strokeWidth={3}
-                  dot={{ fill: '#3B82F6', r: 4 }}
-                  activeDot={{ r: 6 }}
-                  name="Revenue ($k)"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Growth %" 
-                  stroke="#10B981" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={{ fill: '#10B981', r: 3 }}
-                  name="Growth %"
-                />
-              </>
+            {data.id === 5 ? (
+              // Custom Legend for ID5 to show axis association
+              <Legend 
+                content={(props) => (
+                  <div className="flex justify-center gap-6 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-1 bg-blue-600 rounded"></div>
+                      <span className="text-sm font-medium text-blue-600">Conversion Rate (%) - Left Axis</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-1 bg-green-600 rounded border-2 border-green-600" style={{borderStyle: 'dashed'}}></div>
+                      <span className="text-sm font-medium text-green-600">Total Leads - Right Axis</span>
+                    </div>
+                  </div>
+                )}
+              />
             ) : (
+              <Legend />
+            )}
+            {data.id === 11 ? (
+              // ID11 - Quarterly Revenue by Industry Trends
+              chartType === 'industry-trends' ? (
+                <>
+                  <Line 
+                    type="monotone" 
+                    dataKey="Tech" 
+                    stroke="#3B82F6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#3B82F6', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Tech ($k)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Finance" 
+                    stroke="#10B981" 
+                    strokeWidth={3}
+                    dot={{ fill: '#10B981', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Finance ($k)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Health" 
+                    stroke="#EF4444" 
+                    strokeWidth={3}
+                    dot={{ fill: '#EF4444', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Health ($k)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Education" 
+                    stroke="#8B5CF6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#8B5CF6', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Education ($k)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Retail" 
+                    stroke="#F59E0B" 
+                    strokeWidth={3}
+                    dot={{ fill: '#F59E0B', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Retail ($k)"
+                  />
+                </>
+              ) : (
+                // Market Share Trends
+                <>
+                  <Line 
+                    type="monotone" 
+                    dataKey="Tech" 
+                    stroke="#3B82F6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#3B82F6', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Tech (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Finance" 
+                    stroke="#10B981" 
+                    strokeWidth={3}
+                    dot={{ fill: '#10B981', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Finance (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Health" 
+                    stroke="#EF4444" 
+                    strokeWidth={3}
+                    dot={{ fill: '#EF4444', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Health (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Education" 
+                    stroke="#8B5CF6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#8B5CF6', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Education (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Retail" 
+                    stroke="#F59E0B" 
+                    strokeWidth={3}
+                    dot={{ fill: '#F59E0B', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Retail (%)"
+                  />
+                </>
+              )
+            ) : data.kpi === 'sales revenue' ? (
+              data.id === 3 ? (
+                // ID3 - Sales Rep Analysis
+                chartType === 'ranking' ? (
+                  // Sales Rep Revenue Ranking - Single revenue line
+                  <>
+                    <Line 
+                      type="monotone" 
+                      dataKey="Revenue" 
+                      stroke="#3B82F6" 
+                      strokeWidth={3}
+                      dot={{ fill: '#3B82F6', r: 4 }}
+                      activeDot={{ r: 6 }}
+                      name="Revenue ($k)"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="Quota Attainment" 
+                      stroke="#10B981" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={{ fill: '#10B981', r: 3 }}
+                      name="Quota Attainment (%)"
+                      yAxisId="right"
+                    />
+                    <YAxis 
+                      yAxisId="right" 
+                      orientation="right" 
+                      style={{ fontSize: '12px' }}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                  </>
+                ) : (
+                  // Monthly Performance Trends - Top 3 reps
+                  <>
+                    <Line 
+                      type="monotone" 
+                      dataKey="Michael" 
+                      stroke="#3B82F6" 
+                      strokeWidth={3}
+                      dot={{ fill: '#3B82F6', r: 4 }}
+                      activeDot={{ r: 6 }}
+                      name="Michael Nichols ($k)"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="Aaron" 
+                      stroke="#10B981" 
+                      strokeWidth={3}
+                      dot={{ fill: '#10B981', r: 4 }}
+                      activeDot={{ r: 6 }}
+                      name="Aaron Meyer ($k)"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="Robyn" 
+                      stroke="#F59E0B" 
+                      strokeWidth={3}
+                      dot={{ fill: '#F59E0B', r: 4 }}
+                      activeDot={{ r: 6 }}
+                      name="Robyn Howell ($k)"
+                    />
+                  </>
+                )
+              ) : (
+                // ID1 - Industry Analysis  
+                chartType === 'revenue' ? (
+                  // Revenue & Growth Chart - ONLY revenue metrics
+                  <>
+                    <Line 
+                      type="monotone" 
+                      dataKey="Revenue" 
+                      stroke="#3B82F6" 
+                      strokeWidth={3}
+                      dot={{ fill: '#3B82F6', r: 4 }}
+                      activeDot={{ r: 6 }}
+                      name="Revenue ($k)"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="Growth Rate" 
+                      stroke="#10B981" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={{ fill: '#10B981', r: 3 }}
+                      name="Growth Rate (%)"
+                      yAxisId="right"
+                    />
+                    <YAxis 
+                      yAxisId="right" 
+                      orientation="right" 
+                      style={{ fontSize: '12px' }}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                  </>
+                ) : (
+                  // Lead Performance Chart - ONLY lead metrics
+                  <>
+                    <Line 
+                      type="monotone" 
+                      dataKey="Lead Volume" 
+                      stroke="#8B5CF6" 
+                      strokeWidth={3}
+                      dot={{ fill: '#8B5CF6', r: 4 }}
+                      activeDot={{ r: 6 }}
+                      name="Lead Volume"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="Conversion Rate" 
+                      stroke="#F59E0B" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={{ fill: '#F59E0B', r: 3 }}
+                      name="Conversion Rate (%)"
+                      yAxisId="right"
+                    />
+                    <YAxis 
+                      yAxisId="right" 
+                      orientation="right" 
+                      style={{ fontSize: '12px' }}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                  </>
+                )
+              )
+            ) : data.kpi === 'lead conversion rate' ? (
+              data.id === 5 ? (
+                // ID5 - Yearly conversion trends with dual axis and clear labels
+                <>
+                  <Line 
+                    type="monotone" 
+                    dataKey="Conversion Rate" 
+                    stroke="#2563EB" 
+                    strokeWidth={4}
+                    dot={{ fill: '#2563EB', r: 6 }}
+                    activeDot={{ r: 8 }}
+                    name="Conversion Rate (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Total Leads" 
+                    stroke="#059669" 
+                    strokeWidth={3}
+                    strokeDasharray="8 4"
+                    yAxisId="right"
+                    dot={{ fill: '#059669', r: 5 }}
+                    activeDot={{ r: 7 }}
+                    name="Total Leads (Volume)"
+                  />
+                  {/* Left Y-axis for Conversion Rate */}
+                  <YAxis 
+                    yAxisId="left" 
+                    orientation="left" 
+                    style={{ fontSize: '12px', fill: '#2563EB', fontWeight: 'bold' }} 
+                    label={{ 
+                      value: 'Conversion Rate (%)', 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle', fill: '#2563EB', fontWeight: 'bold' }
+                    }}
+                    tickFormatter={(value) => `${value}%`}
+                  />
+                  {/* Right Y-axis for Lead Volume */}
+                  <YAxis 
+                    yAxisId="right" 
+                    orientation="right" 
+                    style={{ fontSize: '12px', fill: '#059669', fontWeight: 'bold' }} 
+                    label={{ 
+                      value: 'Total Leads', 
+                      angle: 90, 
+                      position: 'insideRight',
+                      style: { textAnchor: 'middle', fill: '#059669', fontWeight: 'bold' }
+                    }}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                </>
+              ) : chartType === 'conversion' ? (
+                // Overall Conversion Rate Trend
+                <>
+                  <Line 
+                    type="monotone" 
+                    dataKey="Conversion Rate" 
+                    stroke="#3B82F6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#3B82F6', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Conversion Rate (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Lead Volume" 
+                    stroke="#10B981" 
+                    strokeWidth={2}
+                    yAxisId="right"
+                    dot={{ fill: '#10B981', r: 3 }}
+                    name="Lead Volume"
+                  />
+                  <YAxis yAxisId="right" orientation="right" style={{ fontSize: '12px' }} />
+                </>
+              ) : (
+                // Individual Source Performance - Top 3 sources
+                <>
+                  <Line 
+                    type="monotone" 
+                    dataKey="Ad" 
+                    stroke="#3B82F6" 
+                    strokeWidth={3}
+                    dot={{ fill: '#3B82F6', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Ad (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Web" 
+                    stroke="#10B981" 
+                    strokeWidth={3}
+                    dot={{ fill: '#10B981', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Web (%)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Referral" 
+                    stroke="#F59E0B" 
+                    strokeWidth={3}
+                    dot={{ fill: '#F59E0B', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Referral (%)"
+                  />
+                </>
+              )
+            ) : (
+              // Default case for other KPIs
               <>
                 <Line 
                   type="monotone" 
@@ -214,9 +828,21 @@ if (hasTimeSeries && data.kpi === 'sales revenue') {
       {/* Trend Summary */}
       <div className="mt-4 pt-4 border-t border-gray-200">
         <p className="text-sm text-gray-600">
-          {data.kpi === 'sales revenue' 
-            ? `Overall market growth: 7.8% YoY | Best performer: Tech (+15.2%)`
-            : `Best performing channel: Ad Campaigns (+17% improvement) | Highest value: Referral ($52k avg)`
+          {data.id === 11
+            ? (chartType === 'industry-trends'
+                ? `Quarterly revenue growth: Education leading at $3.2M (Q2'25) | Health volatile: $190k → $3.3M | Finance steady performer`
+                : `Market share distribution: Education 26-31%, Finance 16-23%, Health 4-34% (most volatile), Tech 14-23%, Retail 18-21%`)
+            : data.kpi === 'sales revenue' 
+              ? (data.id === 3 
+                  ? (chartType === 'ranking'
+                      ? `Top performer: Michael Nichols ($1.06M, 118% quota) | Avg deal size: $46k | Performance spread: $291k`
+                      : `Michael trending up: $156k → $175k | Aaron stable around $150k | Robyn improving: $142k → $152k`)
+                  : (chartType === 'revenue' 
+                      ? `Revenue trending upward: $1.63M → $2.12M (+30%) | Growth stabilizing around 3-4%`
+                      : `Lead volume growing: 245 → 358 (+46%) | Conversion improving: 50% → 64%`))
+              : (chartType === 'conversion'
+                  ? `Overall conversion improving: 52% → 61% (+17%) | Best performing: Ad Campaigns`
+                  : `Top performers: Ad (61.4%), Web (60.5%), Referral (59.9%) | Ad showing strongest growth`)
           }
         </p>
       </div>

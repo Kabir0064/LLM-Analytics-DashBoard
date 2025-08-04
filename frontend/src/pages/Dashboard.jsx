@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PayloadViewer from '../components/data/PayloadViewer';
 import KPISummary from '../components/charts/KPISummary';
 import TrendLineChart from '../components/charts/TrendLineChart';
@@ -9,7 +9,83 @@ import CorrelationChart from '../components/charts/CorrelationChart';
 
 function Dashboard() {
   const [selectedPayloadId, setSelectedPayloadId] = useState(samplePayloads[0].id);
+  const [activeChart, setActiveChart] = useState('trend');
+  const [selectedYear, setSelectedYear] = useState(2025); // Default to 2025
   const selectedPayload = samplePayloads.find(p => p.id === selectedPayloadId);
+  
+  // Dynamic default for trend chart based on KPI type and payload
+  const getDefaultTrendChart = () => {
+    if (selectedPayload.kpi === 'sales revenue') {
+      if (selectedPayload.id === 3) return 'ranking'; // ID3 - Sales Rep ranking
+      return 'revenue'; // ID1 - Industry revenue
+    }
+    if (selectedPayload.kpi === 'lead conversion rate') return 'conversion';
+    return 'revenue';
+  };
+  
+  const [activeTrendChart, setActiveTrendChart] = useState(getDefaultTrendChart());
+
+  // Reset trend chart when payload changes
+  useEffect(() => {
+    setActiveTrendChart(getDefaultTrendChart());
+  }, [selectedPayloadId]);
+
+  // Chart options
+  const chartOptions = [
+    { id: 'trend', label: 'Trend Analysis', icon: '📈' },
+    { id: 'pie', label: 'Distribution', icon: '🥧' },
+    { id: 'bar', label: 'Comparison', icon: '📊' },
+    { id: 'correlation', label: 'Correlation', icon: '🔗' }
+  ];
+
+  // Trend chart sub-options - dynamic based on KPI type and payload
+  const getTrendChartOptions = () => {
+    if (selectedPayload.id === 11) {
+      // ID11 - Quarterly Revenue by Industry
+      return [
+        { id: 'industry-trends', label: 'Industry Trends', icon: '📈' },
+        { id: 'market-share', label: 'Market Share', icon: '🥧' }
+      ];
+    } else if (selectedPayload.kpi === 'sales revenue') {
+      if (selectedPayload.id === 3) {
+        // ID3 - Sales Rep performance analysis
+        return [
+          { id: 'ranking', label: 'Rep Ranking', icon: '🏆' },
+          { id: 'performance', label: 'Monthly Performance', icon: '📈' }
+        ];
+      } else {
+        // ID1 - Industry revenue analysis
+        return [
+          { id: 'revenue', label: 'Revenue Trend', icon: '💰' },
+          { id: 'performance', label: 'Lead Performance', icon: '👥' }
+        ];
+      }
+    } else if (selectedPayload.kpi === 'lead conversion rate') {
+      if (selectedPayload.id === 4) {
+        // ID4 - Industry Lead Conversion Analysis
+        return [
+          { id: 'conversion', label: 'Industry Comparison', icon: '🏢' },
+          { id: 'sources', label: 'Year-over-Year Trends', icon: '📊' }
+        ];
+      } else if (selectedPayload.id === 5) {
+        // ID5 - Overall Lead Conversion Analysis (simplified to one chart)
+        return [
+          { id: 'conversion', label: 'Conversion Rate Trend', icon: '📈' }
+        ];
+      } else {
+        return [
+          { id: 'conversion', label: 'Conversion Trends', icon: '📈' },
+          { id: 'sources', label: 'Source Performance', icon: '🎯' }
+        ];
+      }
+    }
+    return [
+      { id: 'revenue', label: 'Revenue Trend', icon: '💰' },
+      { id: 'performance', label: 'Lead Performance', icon: '👥' }
+    ];
+  };
+
+  const trendChartOptions = getTrendChartOptions();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -35,40 +111,125 @@ function Dashboard() {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Select Analysis
           </label>
-          <select
-            value={selectedPayloadId}
-            onChange={(e) => setSelectedPayloadId(Number(e.target.value))}
-            className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {samplePayloads.map(payload => (
-              <option key={payload.id} value={payload.id}>
-                {payload.title}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-col md:flex-row gap-4">
+            <select
+              value={selectedPayloadId}
+              onChange={(e) => setSelectedPayloadId(Number(e.target.value))}
+              className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {samplePayloads.map(payload => (
+                <option key={payload.id} value={payload.id}>
+                  {payload.title}
+                </option>
+              ))}
+            </select>
+            
+            {/* Year Selector - Only show for ID4 */}
+            {selectedPayload.id === 4 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Year
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="w-full md:w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value={2025}>2025</option>
+                  <option value={2024}>2024</option>
+                  <option value={2023}>2023</option>
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* KPI Summary Cards */}
         <KPISummary data={selectedPayload.result} />
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <TrendLineChart 
-            data={selectedPayload.result} 
-            title="Trend Analysis" 
-          />
-          <DistributionPieChart 
-            data={selectedPayload.result} 
-            title="Distribution Breakdown" 
-          />
+        {/* Chart Toggle Buttons */}
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 w-full mb-2">Visualizations:</h3>
+            {chartOptions.map((option) => (
+              <button
+                key={option.id}
+                onClick={() => setActiveChart(option.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  activeChart === option.id
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <span>{option.icon}</span>
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Bar Chart */}
+        {/* Active Chart Display */}
         <div className="mb-8">
-          <ComparisonBarChart 
-            data={selectedPayload.result} 
-            title="Comparative Analysis" 
-          />
+          {activeChart === 'trend' && (
+            <div>
+              {/* Trend Chart Sub-Toggle */}
+              <div className="mb-4">
+                <div className="flex gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200 w-fit">
+                  {trendChartOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setActiveTrendChart(option.id)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                        activeTrendChart === option.id
+                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <span>{option.icon}</span>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Render the selected trend chart */}
+              <TrendLineChart 
+                key={activeTrendChart} // Force re-mount when chart type changes
+                data={selectedPayload} 
+                title={
+                  selectedPayload.id === 11
+                    ? (activeTrendChart === 'industry-trends' ? 'Quarterly Revenue Trends by Industry' : 'Market Share Evolution by Industry')
+                    : selectedPayload.kpi === 'sales revenue' 
+                      ? (activeTrendChart === 'revenue' ? 'Revenue & Growth Trend' : 'Lead Performance Trend')
+                      : selectedPayload.id === 4 
+                        ? (activeTrendChart === 'conversion' ? `Industry Conversion Rates (${selectedYear})` : 'Industry Comparison Across Years')
+                        : selectedPayload.id === 5
+                          ? 'Overall Lead Conversion Trend (2022-2024)'
+                          : (activeTrendChart === 'conversion' ? 'Conversion Rate Trends' : 'Lead Source Performance')
+                }
+                chartType={activeTrendChart}
+                selectedYear={selectedYear}
+              />
+            </div>
+          )}
+          {activeChart === 'pie' && (
+            <DistributionPieChart 
+              data={selectedPayload} 
+              title="Distribution Breakdown" 
+            />
+          )}
+          {activeChart === 'bar' && (
+            <ComparisonBarChart 
+              data={selectedPayload} 
+              title={selectedPayload.id === 11 ? "Quarterly Revenue by Industry" : "Comparative Analysis"} 
+            />
+          )}
+          {activeChart === 'correlation' && (
+            <CorrelationChart 
+              data={selectedPayload} 
+              title="Correlation Analysis" 
+            />
+          )}
         </div>
 
         {/* Main Content - Original Payload Viewer */}
