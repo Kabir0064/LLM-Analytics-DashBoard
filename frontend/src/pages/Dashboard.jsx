@@ -40,7 +40,13 @@ function Dashboard() {
 
   // Trend chart sub-options - dynamic based on KPI type and payload
   const getTrendChartOptions = () => {
-    if (selectedPayload.kpi === 'sales revenue') {
+    if (selectedPayload.id === 11) {
+      // ID11 - Quarterly Revenue by Industry
+      return [
+        { id: 'industry-trends', label: 'Industry Trends', icon: '📈' },
+        { id: 'market-share', label: 'Market Share', icon: '🥧' }
+      ];
+    } else if (selectedPayload.kpi === 'sales revenue') {
       if (selectedPayload.id === 3) {
         // ID3 - Sales Rep performance analysis
         return [
@@ -191,13 +197,15 @@ function Dashboard() {
                 key={activeTrendChart} // Force re-mount when chart type changes
                 data={selectedPayload} 
                 title={
-                  selectedPayload.kpi === 'sales revenue' 
-                    ? (activeTrendChart === 'revenue' ? 'Revenue & Growth Trend' : 'Lead Performance Trend')
-                    : selectedPayload.id === 4 
-                      ? (activeTrendChart === 'conversion' ? `Industry Conversion Rates (${selectedYear})` : 'Industry Comparison Across Years')
-                      : selectedPayload.id === 5
-                        ? 'Overall Lead Conversion Trend (2022-2024)'
-                        : (activeTrendChart === 'conversion' ? 'Conversion Rate Trends' : 'Lead Source Performance')
+                  selectedPayload.id === 11
+                    ? (activeTrendChart === 'industry-trends' ? 'Quarterly Revenue Trends by Industry' : 'Market Share Evolution by Industry')
+                    : selectedPayload.kpi === 'sales revenue' 
+                      ? (activeTrendChart === 'revenue' ? 'Revenue & Growth Trend' : 'Lead Performance Trend')
+                      : selectedPayload.id === 4 
+                        ? (activeTrendChart === 'conversion' ? `Industry Conversion Rates (${selectedYear})` : 'Industry Comparison Across Years')
+                        : selectedPayload.id === 5
+                          ? 'Overall Lead Conversion Trend (2022-2024)'
+                          : (activeTrendChart === 'conversion' ? 'Conversion Rate Trends' : 'Lead Source Performance')
                 }
                 chartType={activeTrendChart}
                 selectedYear={selectedYear}
@@ -213,7 +221,7 @@ function Dashboard() {
           {activeChart === 'bar' && (
             <ComparisonBarChart 
               data={selectedPayload} 
-              title="Comparative Analysis" 
+              title={selectedPayload.id === 11 ? "Quarterly Revenue by Industry" : "Comparative Analysis"} 
             />
           )}
           {activeChart === 'correlation' && (

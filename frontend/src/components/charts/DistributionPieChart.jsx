@@ -7,7 +7,22 @@ function DistributionPieChart({ data, title, selectedYear = '2025' }) {
   // Handle different payload types
   let chartData = [];
   
-  if (data.id === 3) {
+  if (data.id === 11) {
+    // ID11 - Total Revenue Distribution by Industry (aggregated across all quarters)
+    const industryTotals = {};
+    data.result.tableData.rows.forEach(row => {
+      if (!industryTotals[row.INDUSTRY]) {
+        industryTotals[row.INDUSTRY] = 0;
+      }
+      industryTotals[row.INDUSTRY] += row.REVENUE;
+    });
+    
+    chartData = Object.entries(industryTotals).map(([industry, revenue]) => ({
+      name: industry,
+      value: Math.round(revenue / 1000), // Convert to $k
+      percentage: ((revenue / Object.values(industryTotals).reduce((sum, val) => sum + val, 0)) * 100).toFixed(1)
+    }));
+  } else if (data.id === 3) {
     // ID3 - Sales Rep Revenue Distribution
     chartData = data.result.tableData.rows.map(rep => ({
       name: rep.REP_NAME.split(' ')[0], // First name only
@@ -56,10 +71,14 @@ function DistributionPieChart({ data, title, selectedYear = '2025' }) {
         <div className="bg-white p-3 border rounded-lg shadow-lg">
           <p className="font-semibold">{item.fullName || item.name}</p>
           <p style={{ color: payload[0].color }}>
-            {data.id === 3 ? `Revenue: $${item.value}k` : 
+            {data.id === 11 ? `Revenue: $${item.value}k` :
+             data.id === 3 ? `Revenue: $${item.value}k` : 
              data.id === 4 ? `Conversion Rate: ${item.value}%` :
              `Value: ${item.value.toLocaleString()}`}
           </p>
+          {data.id === 11 && item.percentage && (
+            <p className="text-sm text-gray-600">Market Share: {item.percentage}%</p>
+          )}
           {item.quota && (
             <p className="text-sm text-gray-600">Quota: {item.quota}%</p>
           )}
@@ -76,9 +95,7 @@ function DistributionPieChart({ data, title, selectedYear = '2025' }) {
       );
     }
     return null;
-  };
-
-  return (
+  };  return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}

@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { motion } from 'framer-motion';
 
 function ComparisonBarChart({ data, title, selectedYear = '2025' }) {
-  // Color palette for different bars
+  // Color palette for different bars and industries
   const colors = [
     '#3B82F6', // Blue
     '#10B981', // Green
@@ -13,6 +13,15 @@ function ComparisonBarChart({ data, title, selectedYear = '2025' }) {
     '#84CC16', // Lime
     '#F97316'  // Orange
   ];
+
+  // Industry color mapping for consistent visualization
+  const industryColors = {
+    'Tech': '#3B82F6',      // Blue
+    'Finance': '#10B981',   // Green
+    'Health': '#EF4444',    // Red
+    'Education': '#8B5CF6', // Purple
+    'Retail': '#F59E0B'     // Orange
+  };
 
   // Handle different payload types
   let chartData = [];
@@ -27,6 +36,27 @@ function ComparisonBarChart({ data, title, selectedYear = '2025' }) {
       deals: rep.DEALS_COUNT,
       avgDeal: Math.round(rep.AVG_DEAL_SIZE / 1000) // Avg deal size in $k
     }));
+  } else if (data.id === 11) {
+    // ID11 - Quarterly Revenue by Industry (Stacked Bar Chart)
+    const quarters = [...new Set(data.result.tableData.rows.map(row => row.QUARTER))].sort();
+    
+    chartData = quarters.map(quarter => {
+      const quarterData = data.result.tableData.rows.filter(row => row.QUARTER === quarter);
+      const quarterObj = {
+        name: new Date(quarter).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
+        fullQuarter: quarter,
+        total: 0
+      };
+      
+      // Add revenue for each industry
+      quarterData.forEach(row => {
+        quarterObj[row.INDUSTRY] = Math.round(row.REVENUE / 1000); // Revenue in $k
+        quarterObj.total += row.REVENUE;
+      });
+      
+      quarterObj.total = Math.round(quarterObj.total / 1000); // Total in $k
+      return quarterObj;
+    });
   } else if (data.id === 4) {
     // ID4 - Industry Performance Comparison (2025 data)
     const currentYearData = data.result.tableData.rows.filter(row => row.YEAR === 2025);
@@ -93,6 +123,48 @@ function ComparisonBarChart({ data, title, selectedYear = '2025' }) {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const item = payload[0].payload;
+      
+      if (data.id === 11) {
+        // ID11 - Quarterly Revenue by Industry (Stacked)
+        // Check if hovering over specific industry segment
+        if (payload.length === 1 && payload[0].dataKey !== 'total') {
+          const industry = payload[0].dataKey;
+          const revenue = payload[0].value;
+          return (
+            <div className="bg-white p-3 border rounded-lg shadow-lg">
+              <p className="font-semibold">{label}</p>
+              <p style={{ color: industryColors[industry] }} className="font-medium">
+                {industry}: ${revenue}k
+              </p>
+              <p className="text-sm text-gray-600">
+                {((revenue / item.total) * 100).toFixed(1)}% of quarter total
+              </p>
+            </div>
+          );
+        }
+        
+        // Show all industries for the quarter
+        return (
+          <div className="bg-white p-3 border rounded-lg shadow-lg">
+            <p className="font-semibold">{label}</p>
+            <p className="text-sm text-gray-600 mb-2">Total: ${item.total}k</p>
+            <div className="space-y-1">
+              {Object.keys(industryColors)
+                .filter(industry => item[industry])
+                .sort((a, b) => item[b] - item[a]) // Sort by revenue descending
+                .map(industry => (
+                  <div key={industry} className="flex justify-between items-center">
+                    <span style={{ color: industryColors[industry] }} className="text-sm font-medium">
+                      {industry}:
+                    </span>
+                    <span className="text-sm">${item[industry]}k</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="bg-white p-3 border rounded-lg shadow-lg">
           <p className="font-semibold">{item.fullName || label}</p>
@@ -141,7 +213,21 @@ function ComparisonBarChart({ data, title, selectedYear = '2025' }) {
           <YAxis />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
-          {data.id === 3 ? (
+          {data.id === 11 ? (
+            // ID11 - Stacked Bar Chart for Quarterly Revenue by Industry
+            <>
+              {['Tech', 'Finance', 'Health', 'Education', 'Retail'].map((industry, index, array) => (
+                <Bar 
+                  key={industry}
+                  dataKey={industry} 
+                  stackId="quarter"
+                  name={industry}
+                  fill={industryColors[industry]}
+                  radius={index === array.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} // Rounded top only for the topmost stack
+                />
+              ))}
+            </>
+          ) : data.id === 3 ? (
             // ID3 - Sales Rep bars with revenue and quota
             <>
               <Bar 
