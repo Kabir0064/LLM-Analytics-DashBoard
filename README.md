@@ -69,7 +69,7 @@ The LLM Analytics Dashboard is a comprehensive web application designed to provi
 ![Login Screen](/frontend/public/screenshots/login-screen.png)
 
 ### Analytics Charts
-![KPI Summary](/frontend/public/screenshots/kpi-summary.png)
+![KPI Summary](frontend/public/screenshots/"Screenshot 2025-07-05 at 11.30.12 PM.png")
 ![Trend Analysis](/frontend/public/screenshots/trend-chart.png)
 ![Distribution Chart](/frontend/public/screenshots/distribution-chart.png)
 
